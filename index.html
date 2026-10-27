@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dad Control</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --ink:#12314e; --dim:#55708c; --line:#bcd9f7; --line2:#2f5a8a;
+    --green:#17b96b; --green2:#37d67a; --amber:#f59e0b; --amber2:#ffd166; --red:#e23c2e;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  html { -webkit-text-size-adjust:100%; }
+  body{
+    font-family:"Segoe UI",Verdana,system-ui,sans-serif; color:var(--ink); min-height:100vh;
+    background:
+      radial-gradient(900px 480px at 110% -10%, rgba(245,158,11,.25), rgba(245,158,11,0) 60%),
+      radial-gradient(820px 520px at -10% 0%, rgba(14,165,233,.28), rgba(14,165,233,0) 55%),
+      linear-gradient(180deg,#dff2ff 0%, #f4faff 46%, #fff6e0 100%);
+    overflow-x:hidden;
+  }
+  #gridfloor{ position:fixed; left:-30%; right:-30%; bottom:-14%; height:44vh; z-index:0; pointer-events:none;
+    background:linear-gradient(transparent 0%, rgba(23,185,107,.06) 100%),
+      repeating-linear-gradient(90deg, rgba(47,90,138,.13) 0 1px, transparent 1px 64px),
+      repeating-linear-gradient(0deg, rgba(47,90,138,.13) 0 1px, transparent 1px 40px);
+    transform:perspective(420px) rotateX(62deg); transform-origin:bottom; animation:gridmove 6s linear infinite; }
+  @keyframes gridmove{ from{ background-position:0 0,0 0,0 0;} to{ background-position:0 0,0 0,0 40px; } }
+  #glowA{ position:fixed; width:64vw; height:64vw; max-width:520px; max-height:520px; right:-16vw; top:-18vw; z-index:0; pointer-events:none;
+    background:radial-gradient(circle, rgba(55,214,122,.20), transparent 65%); }
+  #glowB{ position:fixed; width:56vw; height:56vw; left:-14vw; bottom:-12vw; z-index:0; pointer-events:none;
+    background:radial-gradient(circle, rgba(255,179,64,.16), transparent 65%); }
+
+  .wrap{ position:relative; z-index:2; max-width:600px; margin:0 auto; padding:14px 14px 46px; }
+  .screen{ display:none; animation:fadein .3s ease; }
+  .screen.active{ display:block; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .brand{ text-align:center; margin:10px 0 2px; font-family:var(--mono); letter-spacing:5px; font-size:12.5px; color:#0d8a4c; font-weight:700; }
+  h1.title{ text-align:center; font-size:41px; letter-spacing:3px; font-weight:800; color:#0e2c47;
+    text-shadow:0 2px 0 rgba(255,255,255,.8), 0 0 24px rgba(55,214,122,.45), 0 10px 24px rgba(18,49,78,.25); margin-bottom:2px; }
+  .tagline{ text-align:center; color:var(--dim); font-size:15.5px; letter-spacing:.4px; margin-bottom:6px; line-height:1.45; }
+
+  .panel{
+    background:linear-gradient(165deg, rgba(255,255,255,.96), rgba(226,242,255,.94));
+    border:1px solid var(--line); border-radius:16px; padding:17px; margin:14px 0; position:relative;
+    box-shadow:0 20px 38px rgba(18,49,78,.18), 0 4px 0 rgba(18,49,78,.10), inset 0 1px 0 rgba(255,255,255,.9), inset 0 -12px 24px rgba(37,99,235,.05);
+  }
+  .panel:before{ content:""; position:absolute; inset:0; border-radius:16px; pointer-events:none;
+    background:linear-gradient(115deg, rgba(255,255,255,.5) 0%, transparent 34%); }
+  .panel h2{ font-family:var(--mono); font-size:13.5px; letter-spacing:3px; color:#92600a; margin-bottom:10px; font-weight:700; }
+  .panel p{ font-size:16px; line-height:1.5; }
+  .dim{ color:var(--dim); }
+  .section-sub{ font-size:15px; color:#44617f; line-height:1.5; margin-bottom:14px; }
+
+  .btn{
+    display:block; width:100%; border:1px solid #0d8a4c; cursor:pointer; text-align:center;
+    font-family:var(--mono); font-weight:700; letter-spacing:2px; color:#03130a; border-radius:12px;
+    padding:18px 14px; font-size:19px; background:linear-gradient(180deg,#6dffb8,#1ecb74);
+    box-shadow:0 0 22px rgba(55,214,122,.35), 0 8px 0 #0d6e3c, 0 18px 30px rgba(18,49,78,.30), inset 0 1px 0 rgba(255,255,255,.55);
+    transition:transform .07s, box-shadow .07s; margin:12px 0; position:relative;
+  }
+  .btn:active{ transform:translateY(5px); box-shadow:0 0 12px rgba(55,214,122,.3), 0 3px 0 #0d6e3c, 0 8px 16px rgba(18,49,78,.25); }
+  .btn.amber{ background:linear-gradient(180deg,#ffd968,#ff9d00); border-color:#b96e00; color:#2b1800; box-shadow:0 0 22px rgba(255,179,64,.35), 0 8px 0 #8a5600, 0 18px 30px rgba(18,49,78,.3), inset 0 1px 0 rgba(255,255,255,.5); }
+  .btn.amber:active{ box-shadow:0 0 12px rgba(255,179,64,.3), 0 3px 0 #8a5600; }
+  .btn.dark{ background:linear-gradient(180deg,#2a4a75,#10233c); color:#7dffb0; border-color:var(--line2); box-shadow:0 6px 0 #050b14, 0 16px 26px rgba(18,49,78,.35), inset 0 1px 0 rgba(255,255,255,.16); }
+  .btn.dark:active{ box-shadow:0 2px 0 #050b14; }
+  .btn.small{ font-size:15px; padding:13px; }
+  .btn:disabled{ filter:grayscale(.5); opacity:.6; }
+  .linkbtn{ display:block; margin:10px auto 0; background:none; border:none; color:var(--dim); font-family:var(--mono); font-size:13px; letter-spacing:2px; cursor:pointer; text-decoration:underline; }
+
+  input[type=text], input[type=password]{
+    font-family:inherit; font-size:16.5px; padding:14px; border-radius:10px; border:2px solid var(--line);
+    background:#fbfdff; color:var(--ink); width:100%;
+    box-shadow:inset 0 3px 8px rgba(18,49,78,.10);
+  }
+  input::placeholder{ color:#7d99b3; }
+  input:focus{ outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(55,214,122,.18), inset 0 3px 8px rgba(18,49,78,.08); }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:9px; margin:12px 0 2px; }
+  .chipbtn{ font-family:var(--mono); font-size:15px; letter-spacing:1px; padding:11px 16px; border-radius:999px; cursor:pointer;
+    background:linear-gradient(180deg,#ffffff,#dcefff); color:var(--ink); border:1px solid var(--line2); box-shadow:0 5px 0 rgba(18,49,78,.35), 0 10px 16px rgba(18,49,78,.18); }
+  .chipbtn.on{ background:linear-gradient(180deg,#6dffb8,#1ecb74); color:#03130a; border-color:#0d8a4c; font-weight:700; box-shadow:0 0 16px rgba(55,214,122,.5), 0 5px 0 #0d6e3c; }
+
+  /* Settings: comms settings, always at the very top */
+  .settings-card{ padding:13px 15px; margin-top:0; }
+  .settings-toggle{
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:linear-gradient(180deg,#ffffff,#eaf4ff); border:2px solid var(--line); border-radius:13px;
+    padding:12px 14px; font-family:var(--mono); letter-spacing:2px; text-align:left;
+    font-size:15.5px; font-weight:700; color:#174a73; cursor:pointer;
+    box-shadow:0 5px 12px rgba(37,99,235,.12); position:relative;
+  }
+  .settings-toggle > span:first-child{ white-space:nowrap; }
+  .pill{ font-size:12px; font-weight:800; letter-spacing:.4px; background:#e2e8f0; color:#475569; border-radius:999px; padding:5px 10px; white-space:nowrap; font-family:inherit; }
+  .pill.saved{ background:#dcfce7; color:#166534; }
+  .settings-panel{ padding-top:14px; position:relative; }
+  .settings-panel label{ display:block; font-weight:800; font-size:15px; margin-bottom:7px; }
+  .tiny{ font-size:13.5px; color:var(--dim); line-height:1.45; margin:9px 0 12px; }
+  .save-msg{ font-size:14px; font-weight:700; color:#166534; margin-top:10px; min-height:18px; }
+  .amber-btn{
+    width:100%; min-height:54px; font-size:17px; font-weight:900; color:#2b1a02;
+    background:linear-gradient(180deg,var(--amber2),var(--amber)); border:none; border-radius:13px; cursor:pointer;
+    box-shadow:0 8px 18px rgba(245,158,11,.35), inset 0 2px 0 rgba(255,255,255,.6); font-family:var(--mono); letter-spacing:1px;
+  }
+
+  /* Topbar stats */
+  .topbar{ display:flex; gap:10px; }
+  .stat{ flex:1; background:linear-gradient(165deg,#ffffff,#d9ecff); border:1px solid var(--line); border-radius:12px; padding:10px 6px; text-align:center;
+    box-shadow:0 12px 24px rgba(18,49,78,.16), inset 0 1px 0 rgba(255,255,255,.9); }
+  .stat .k{ font-family:var(--mono); font-size:10px; letter-spacing:2px; color:var(--dim); }
+  .stat .v{ font-size:19px; font-weight:800; color:#0e2c47; margin-top:2px; }
+  .stat .v.green{ color:#0d8a4c; }
+  button.stat{ cursor:pointer; font-family:inherit; }
+
+  /* Control transmission feed */
+  .txbox{ font-family:var(--mono); font-size:16.5px; line-height:1.55; color:#c9ffe2; min-height:76px;
+    background:linear-gradient(160deg,#0d2b1a,#04150b); border:1px solid #17573a; border-radius:10px; padding:12px 14px;
+    box-shadow:inset 0 2px 12px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(18,49,78,.25); position:relative; }
+  .txbox .who{ color:#37ff9a; font-weight:700; }
+  .wave{ display:flex; align-items:flex-end; gap:3px; height:46px; margin:12px 2px 4px; }
+  .wave i{ flex:1; background:linear-gradient(180deg,#37ff9a,#0e7a44); border-radius:2px; height:14%; box-shadow:0 0 8px rgba(55,255,154,.35); animation:eq 1.15s ease-in-out infinite alternate; }
+  .wave.talk i{ animation-duration:.42s; background:linear-gradient(180deg,#8dffc4,#12a150); }
+  @keyframes eq{ from{ transform:scaleY(.45);} to{ transform:scaleY(1);} }
+  .statusline{ font-family:var(--mono); font-size:12.5px; letter-spacing:2px; color:var(--dim); text-align:center; min-height:18px; }
+  .statusline .dot{ color:var(--green); }
+  .statusline.live .dot{ color:var(--red); animation:blink 1s infinite; }
+  @keyframes blink{ 50%{ opacity:.25; } }
+
+  /* Your post banner */
+  .post-banner{
+    background:linear-gradient(135deg,#2563eb 0%, #0ea5e9 60%, #38bdf8 100%); color:#ffffff; border-radius:16px;
+    padding:17px 19px; box-shadow:0 16px 32px rgba(37,99,235,.32), inset 0 1px 0 rgba(255,255,255,.45); margin:14px 0; position:relative;
+  }
+  .post-banner .k{ font-family:var(--mono); font-size:11px; letter-spacing:3px; color:#cfe8ff; }
+  .post-label{ font-size:21px; font-weight:900; letter-spacing:.2px; margin-top:2px; }
+  .post-action{ font-size:15.5px; opacity:.95; margin-top:5px; line-height:1.4; }
+
+  /* Channel is hot */
+  .hot-btn{
+    width:100%; min-height:78px; font-size:23px; font-weight:900; color:#ffffff; letter-spacing:1px;
+    font-family:var(--mono);
+    background:linear-gradient(180deg,#ff7a4d,#e23c2e); border:1px solid #a01c10; border-radius:16px; cursor:pointer;
+    box-shadow:0 0 26px rgba(226,60,46,.35), 0 9px 0 #8f1a0e, 0 18px 30px rgba(18,49,78,.30), inset 0 2px 0 rgba(255,255,255,.45);
+    animation:hotpulse 2.2s ease-in-out infinite;
+  }
+  @keyframes hotpulse{ 0%,100%{ box-shadow:0 0 16px rgba(226,60,46,.25), 0 9px 0 #8f1a0e, 0 18px 30px rgba(18,49,78,.3);} 50%{ box-shadow:0 0 34px rgba(226,60,46,.55), 0 9px 0 #8f1a0e, 0 18px 30px rgba(18,49,78,.3);} }
+  .hot-btn:active{ transform:translateY(5px); }
+  .hint{ font-size:13.5px; color:var(--dim); margin-top:10px; text-align:center; line-height:1.45; }
+
+  .sit-grid{ display:grid; gap:10px; margin-top:6px; }
+  .sit-btn{
+    display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px; width:100%; text-align:left; cursor:pointer; font-family:inherit;
+    min-height:60px; font-size:18.5px; font-weight:800; color:#174a73;
+    background:linear-gradient(180deg,#ffffff,#e2f0ff); border:2px solid var(--line); border-radius:13px;
+    padding:14px 16px; box-shadow:0 7px 0 rgba(18,49,78,.22), 0 14px 22px rgba(18,49,78,.14), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .sit-btn:active{ transform:translateY(3px); }
+  .sit-btn .cod{ font-family:var(--mono); font-size:10.5px; letter-spacing:1.5px; color:#92600a; font-weight:700; }
+  .sit-btn.active{ border-color:var(--amber); background:linear-gradient(180deg,#fffbeb,#fef3c7); color:#92400e; }
+
+  .answer{ margin-top:16px; display:grid; gap:10px; }
+  .block{ border-radius:15px; padding:14px 16px; box-shadow:inset 0 1px 0 rgba(255,255,255,.6), 0 4px 10px rgba(18,49,78,.10); position:relative; }
+  .block .tag{ font-size:12px; font-weight:900; letter-spacing:1.2px; margin-bottom:5px; font-family:var(--mono); }
+  .block .line{ font-size:19px; font-weight:800; line-height:1.4; }
+  .block.say{ background:linear-gradient(180deg,#eaf4ff,#dbeafe); border-left:7px solid #2563eb; }
+  .block.say .tag{ color:#1d4ed8; }
+  .block.dont{ background:linear-gradient(180deg,#fff7ed,#ffedd5); border-left:7px solid #b45309; }
+  .block.dont .tag{ color:#92400e; }
+  .block.dont .line{ color:#7c2d12; }
+  .block.do{ background:linear-gradient(180deg,#fefce8,#fef9c3); border-left:7px solid #eab308; }
+  .block.do .tag{ color:#854d0e; }
+  .block.do .line{ font-weight:700; font-size:17.5px; }
+  .answer-note{ font-size:13.5px; color:var(--dim); margin-top:2px; line-height:1.45; }
+  .speak-btn{
+    margin-top:6px; min-height:52px; width:100%;
+    font-family:var(--mono); font-size:16px; font-weight:700; letter-spacing:1.5px; cursor:pointer;
+    color:#7dffb0; background:linear-gradient(180deg,#2a4a75,#10233c); border:1px solid var(--line2); border-radius:12px;
+    box-shadow:0 6px 0 #050b14, 0 14px 22px rgba(18,49,78,.30), inset 0 1px 0 rgba(255,255,255,.16);
+  }
+  .speak-btn:active{ transform:translateY(3px); box-shadow:0 2px 0 #050b14; }
+  .again-btn{ margin-top:2px; background:none; border:none; cursor:pointer; color:#1d4ed8; font-size:15px; font-weight:800; text-align:left; padding:4px 0; text-decoration:underline; font-family:inherit; }
+
+  textarea{
+    width:100%; min-height:104px; resize:vertical;
+    font-family:inherit; font-size:16.5px; line-height:1.45;
+    border:2px solid var(--line); border-radius:14px; padding:13px 12px;
+    background:#fbfdff; color:var(--ink);
+    box-shadow:inset 0 3px 8px rgba(18,49,78,.08); position:relative;
+  }
+  textarea:focus{ outline:none; border-color:var(--green); box-shadow:0 0 0 3px rgba(55,214,122,.18); }
+  .btn-row{ display:flex; gap:10px; margin-top:12px; }
+  .btn-row .btn{ margin:0; }
+  .mic-btn{
+    min-height:60px; min-width:64px; font-size:22px;
+    background:linear-gradient(180deg,#ffffff,#eaf4ff);
+    border:2px solid var(--line); border-radius:15px; cursor:pointer;
+    box-shadow:0 6px 14px rgba(37,99,235,.14);
+  }
+  .mic-btn.listening{ border-color:var(--amber); background:#fef3c7; }
+
+  .repair-item{ background:linear-gradient(180deg,#ffffff,#f2f8ff); border:2px solid #dbeafe; border-radius:15px; padding:14px 16px; margin-bottom:10px; box-shadow:0 5px 12px rgba(18,49,78,.08); position:relative; }
+  .repair-item .line{ font-size:18px; font-weight:800; line-height:1.4; }
+  .repair-item .when{ font-size:14px; color:var(--dim); margin-top:5px; line-height:1.45; }
+  .repair-speak{
+    margin-top:9px; min-height:44px; padding:8px 16px; cursor:pointer;
+    font-family:var(--mono); font-size:13.5px; font-weight:700; letter-spacing:1.5px;
+    color:#7dffb0; background:linear-gradient(180deg,#2a4a75,#10233c); border:1px solid var(--line2); border-radius:999px;
+    box-shadow:0 4px 0 #050b14, 0 10px 16px rgba(18,49,78,.22);
+  }
+  .repair-speak:active{ transform:translateY(2px); box-shadow:0 1px 0 #050b14; }
+
+  .lane-grid{ display:grid; gap:10px; }
+  .lane-btn{
+    width:100%; text-align:left; min-height:58px; font-size:18px; font-weight:800; color:#174a73;
+    background:linear-gradient(180deg,#ffffff,#eaf4ff); border:2px solid var(--line); border-radius:15px;
+    padding:13px 16px; cursor:pointer; box-shadow:0 6px 14px rgba(37,99,235,.12); font-family:inherit;
+  }
+  .lane-btn .small{ display:block; font-size:13.5px; font-weight:600; color:var(--dim); margin-top:3px; }
+  .lane-btn.picked{ border-color:var(--amber); background:linear-gradient(180deg,#fffbeb,#fef3c7); color:#92400e; }
+
+  .footer-note{ text-align:center; font-size:13px; color:#7d99b3; padding:6px 10px 0; line-height:1.5; }
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+<div id="gridfloor"></div><div id="glowA"></div><div id="glowB"></div>
+<div class="wrap">
+
+  <!-- COMMS SETTINGS: very top of the page, key entered once, blank save never erases -->
+  <div class="panel settings-card">
+    <button class="settings-toggle" id="settingsToggle" aria-expanded="false" aria-controls="settingsPanel">
+      <span>&#9881; COMMS SETTINGS</span>
+      <span class="pill" id="keyState">No key saved</span>
+    </button>
+    <div class="settings-panel" id="settingsPanel" hidden>
+      <label for="groqKey">Your Groq key</label>
+      <input id="groqKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key here">
+      <p class="tiny">The key stays on this device only. It powers the Call Control box below. Leaving the box blank and saving will not erase a key you already saved.</p>
+      <button class="amber-btn" id="saveKeyBtn">SAVE &amp; TUCK AWAY</button>
+      <p class="save-msg" id="saveMsg" role="status"></p>
+    </div>
+  </div>
+
+  <!-- ============ SETUP: CALLSIGN ============ -->
+  <section class="screen" id="scr-setup">
+    <div class="brand">SECURE CHANNEL // DAD FREQUENCY</div>
+    <h1 class="title">DAD CONTROL</h1>
+    <div class="tagline">Control is standing by. Set up your channel, Dad.</div>
+
+    <div class="panel">
+      <h2>STEP 1 // YOUR CALLSIGN</h2>
+      <p class="dim" style="margin-bottom:8px;">Type your own, or tap one from the board. VIPER is first on the board.</p>
+      <input type="text" id="callsignInput" maxlength="16" placeholder="Type a callsign" autocomplete="off">
+      <div class="chips" id="callsignChips"></div>
+    </div>
+
+    <button class="btn" id="openChannelBtn" type="button">OPEN CHANNEL</button>
+    <p class="dim" style="text-align:center; font-family:var(--mono); font-size:12px; letter-spacing:1px;">NO ACCOUNT. EVERYTHING STAYS ON THIS DEVICE.</p>
+  </section>
+
+  <!-- ============ CONTROL ROOM ============ -->
+  <section class="screen" id="scr-main">
+    <div class="topbar">
+      <div class="stat"><div class="k">CALLSIGN</div><div class="v" id="statCallsign">...</div></div>
+      <button class="stat" id="soundToggle" type="button"><div class="k">CONTROL VOICE</div><div class="v green" id="soundState">ON</div></button>
+    </div>
+
+    <div class="post-banner" role="status">
+      <div class="k">YOUR POST</div>
+      <div class="post-label"><span id="laneName">not picked yet</span></div>
+      <div class="post-action" id="laneAction">Pick your post in Your Post below. One job only. That is the whole design.</div>
+    </div>
+
+    <div class="panel">
+      <h2>CONTROL // LIVE FEED</h2>
+      <div class="txbox"><span class="who">CONTROL:</span> <span id="txText">Standing by.</span></div>
+      <div class="wave" id="wave"></div>
+      <div class="statusline" id="statusLine"><span class="dot">&#9679;</span> <span id="statusText">CHANNEL OPEN</span></div>
+    </div>
+
+    <!-- CHANNEL IS HOT: argue help -->
+    <div class="panel">
+      <h2>ARGUE HELP // LIVE TALK-THROUGH</h2>
+      <p class="section-sub">For a dad in the house who wants back in. Short words. One move at a time. When it heats up, Control talks you through it, right in your ear.</p>
+      <button class="hot-btn" id="loudBtn">CHANNEL IS HOT</button>
+      <p class="hint">Tap that first. Pick what is happening. Control gives you one line, one trap to skip, one next move.</p>
+
+      <div id="sitPanel" hidden>
+        <p style="font-weight:900; font-size:20px; margin-top:18px;">What is happening?</p>
+        <div class="sit-grid" id="sitGrid"></div>
+      </div>
+
+      <div class="answer" id="sitAnswer" hidden>
+        <div class="block say"><div class="tag">SAY THIS</div><div class="line" id="sayText"></div></div>
+        <div class="block dont"><div class="tag">NEVER SAY THIS</div><div class="line" id="dontText"></div></div>
+        <div class="block do"><div class="tag">NEXT MOVE</div><div class="line" id="doText"></div></div>
+        <button class="speak-btn" id="speakSitBtn" type="button">&#128266; HEAR CONTROL SAY IT</button>
+        <button class="again-btn" id="againBtn">Tap the situation again for another line.</button>
+      </div>
+    </div>
+
+    <!-- CALL CONTROL: ask for help -->
+    <div class="panel">
+      <h2>CALL CONTROL // ASK FOR HELP</h2>
+      <p class="section-sub">Tell Control what is happening, in your own words. You get back one line to say, one line to skip, and one next move.</p>
+      <textarea id="helpText" placeholder="Example: He has been on the game for hours and blew up when I said time is up."></textarea>
+      <div class="btn-row">
+        <button class="btn" id="askHelpBtn" type="button" style="flex:1;">CALL CONTROL</button>
+        <button class="mic-btn" id="micBtn" title="Talk instead of typing" aria-label="Talk instead of typing" hidden>&#127908;</button>
+      </div>
+      <div class="answer" id="aiAnswer" hidden>
+        <div class="block say"><div class="tag">SAY THIS</div><div class="line" id="aiSay"></div></div>
+        <div class="block dont"><div class="tag">NEVER SAY THIS</div><div class="line" id="aiDont"></div></div>
+        <div class="block do"><div class="tag">NEXT MOVE</div><div class="line" id="aiDo"></div></div>
+        <button class="speak-btn" id="speakAiBtn" type="button">&#128266; HEAR CONTROL SAY IT</button>
+        <p class="answer-note" id="aiNote"></p>
+      </div>
+    </div>
+
+    <!-- REOPEN THE CHANNEL: after a blowup -->
+    <div class="panel">
+      <h2>REOPEN THE CHANNEL // AFTER A BLOWUP</h2>
+      <p class="section-sub">The fight is over. Somebody has to transmit first. Going first is the strong move, and it can be short.</p>
+      <div class="repair-item">
+        <div class="line">&ldquo;I got loud. That is on me. I still got you.&rdquo;</div>
+        <div class="when">Use it after you yelled and the house has cooled down.</div>
+        <button class="repair-speak" type="button" data-say="I got loud. That is on me. I still got you.">&#128266; HEAR IT</button>
+      </div>
+      <div class="repair-item">
+        <div class="line">&ldquo;I do not want us sideways. Can we reset?&rdquo;</div>
+        <div class="when">Use it when the same fight keeps circling back all day.</div>
+        <button class="repair-speak" type="button" data-say="I do not want us sideways. Can we reset?">&#128266; HEAR IT</button>
+      </div>
+      <div class="repair-item">
+        <div class="line">&ldquo;You matter more than that moment. We will fix the plan.&rdquo;</div>
+        <div class="when">Use it when he has gone quiet and looks ashamed after.</div>
+        <button class="repair-speak" type="button" data-say="You matter more than that moment. We will fix the plan.">&#128266; HEAR IT</button>
+      </div>
+      <div class="repair-item">
+        <div class="line">&ldquo;I am here. No lecture. Want a ride or food?&rdquo;</div>
+        <div class="when">Use it when he will talk side by side, but not face to face.</div>
+        <button class="repair-speak" type="button" data-say="I am here. No lecture. Want a ride or food?">&#128266; HEAR IT</button>
+      </div>
+    </div>
+
+    <!-- YOUR POST: my lane -->
+    <div class="panel">
+      <h2>YOUR POST // MY LANE</h2>
+      <p class="section-sub">You do not have to win every talk. Man one post, all the way, every day. That is how you get back in.</p>
+      <div class="lane-grid" id="laneGrid"></div>
+    </div>
+
+    <button class="linkbtn" id="changeCallsignBtn" type="button">CHANGE CALLSIGN</button>
+    <p class="footer-note">Built for the dad who stays. Control is in your ear. Short words reach a flooded teen. Long talks can wait for calm.</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var KEY_STORE = "dadpage_groq_key";
+  var LANE_STORE = "dadpage_lane";
+  var CS_STORE = "dadpage_callsign";
+  var SOUND_STORE = "dadpage_sound";
+
+  function byId(id) { return document.getElementById(id); }
+  function store(key) { try { return localStorage.getItem(key) || ""; } catch (e) { return ""; } }
+  function put(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+  function cs() { return store(CS_STORE) || "Dad"; }
+
+  /* ---------- Screens ---------- */
+  function show(screenId) {
+    var sc = document.querySelectorAll(".screen");
+    for (var i = 0; i < sc.length; i++) { sc[i].classList.remove("active"); }
+    byId(screenId).classList.add("active");
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- Control voice out (radio voice, like Mission Control) ---------- */
+  var soundOn = store(SOUND_STORE) !== "off";
+  var voicePick = null;
+  function pickVoice() {
+    try {
+      var vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+      if (!vs || !vs.length) return;
+      var prefs = [/daniel/i, /guy/i, /christopher/i, /eric/i, /male/i, /google us english/i, /en[-_]us/i, /en[-_]gb/i];
+      for (var p = 0; p < prefs.length; p++) {
+        for (var i = 0; i < vs.length; i++) {
+          if (prefs[p].test(vs[i].name) && /^en/i.test(vs[i].lang || "en")) { voicePick = vs[i]; return; }
+        }
+      }
+      for (var j = 0; j < vs.length; j++) { if (/^en/i.test(vs[j].lang || "")) { voicePick = vs[j]; return; } }
+    } catch (e) {}
+  }
+  if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+
+  var waveBars = [];
+  (function buildWave() {
+    var w = byId("wave");
+    for (var i = 0; i < 24; i++) {
+      var b = document.createElement("i");
+      b.style.height = (16 + ((i * 37) % 62)) + "%";
+      b.style.animationDelay = (i * 0.07) + "s";
+      w.appendChild(b);
+      waveBars.push(b);
+    }
+  })();
+  function waveMode(m) {
+    var w = byId("wave");
+    w.classList.toggle("talk", m === "talk");
+    byId("statusLine").classList.toggle("live", m === "listen");
+    byId("statusText").textContent = m === "talk" ? "CONTROL IS TRANSMITTING" : (m === "listen" ? "RECEIVING. TALK NOW" : "CHANNEL OPEN");
+  }
+  function setTx(text) { byId("txText").textContent = text; }
+
+  var speakGuard = null;
+  function speak(text, force) {
+    setTx(text);
+    if (!window.speechSynthesis) { waveMode("idle"); return; }
+    if (!soundOn && !force) { waveMode("idle"); return; }
+    try {
+      speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      if (voicePick) u.voice = voicePick;
+      u.rate = 0.96; u.pitch = 0.7; u.volume = 1;
+      waveMode("talk");
+      clearTimeout(speakGuard);
+      speakGuard = setTimeout(function () { waveMode("idle"); }, Math.max(1500, text.length * 92));
+      u.onend = u.onerror = function () { clearTimeout(speakGuard); waveMode("idle"); };
+      speechSynthesis.speak(u);
+    } catch (e) { waveMode("idle"); }
+  }
+
+  function refreshSound() {
+    byId("soundState").textContent = soundOn ? "ON" : "OFF";
+    byId("soundState").classList.toggle("green", soundOn);
+  }
+  byId("soundToggle").addEventListener("click", function () {
+    soundOn = !soundOn;
+    put(SOUND_STORE, soundOn ? "on" : "off");
+    refreshSound();
+    if (soundOn) {
+      speak("Voice on. Control is in your ear, " + cs() + ".", true);
+    } else {
+      try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+      setTx("Voice off. Everything still reads on screen, " + cs() + ".");
+      waveMode("idle");
+    }
+  });
+  refreshSound();
+
+  /* ---------- Situation scripts: built in, no key needed (carried over) ---------- */
+  var SITUATIONS = [
+    {
+      id: "wont-listen",
+      label: "Won\u2019t listen",
+      say: [
+        "I\u2019m not here to fight you.",
+        "One thing only. Then I\u2019m done talking."
+      ],
+      dont: "Do you hear me when I\u2019m talking to you?",
+      doNext: "Stop repeating it. Say it once, then step back and give it a minute to land."
+    },
+    {
+      id: "talking-back",
+      label: "Talking back",
+      say: [
+        "You can be mad. Watch the words.",
+        "Say it straight. Skip the extra."
+      ],
+      dont: "Don\u2019t talk to me in that tone.",
+      doNext: "Drop your voice lower than his, not louder. Slow yours down first."
+    },
+    {
+      id: "screen-fight",
+      label: "Screen fight",
+      say: [
+        "Pause it. We talk at 7:30.",
+        "Game off in five. Your pick how it ends."
+      ],
+      dont: "That game is rotting your brain.",
+      doNext: "Set the return time out loud, then walk away. Do not stand over him and count."
+    },
+    {
+      id: "homework-fight",
+      label: "Homework fight",
+      say: [
+        "Ten minutes. Then a break. Start anywhere.",
+        "First problem only. I\u2019ll sit here."
+      ],
+      dont: "It would already be done if you just tried.",
+      doNext: "Sit side by side, not across. Put a timer where he can see it."
+    },
+    {
+      id: "out-the-door",
+      label: "Getting out the door",
+      say: [
+        "Shoes. Bag. Door. That\u2019s the list.",
+        "Five minutes. One warning after this."
+      ],
+      dont: "We are late because of you, again.",
+      doNext: "Stop adding new jobs. Hand him the bag and head for the car."
+    },
+    {
+      id: "shut-down",
+      label: "He shut down",
+      say: [
+        "I\u2019m here. No rush. Talk when ready.",
+        "Quiet is fine. We finish this at dinner."
+      ],
+      dont: "Don\u2019t walk away from me.",
+      doNext: "Give him space and a set time to come back to it. Then keep that time."
+    },
+    {
+      id: "already-yelled",
+      label: "I already yelled",
+      say: [
+        "That came out loud. Reset. Here\u2019s the point.",
+        "My bad on the volume. The job still stands."
+      ],
+      dont: "You made me yell at you.",
+      doNext: "Name it, own it in one line, then say the one thing you need. Nothing more."
+    }
+  ];
+
+  function findSituation(id) {
+    for (var i = 0; i < SITUATIONS.length; i++) {
+      if (SITUATIONS[i].id === id) return SITUATIONS[i];
+    }
+    return SITUATIONS[0];
+  }
+
+  /* ---------- Settings and key handling (behavior unchanged) ---------- */
+  var settingsToggle = byId("settingsToggle");
+  var settingsPanel = byId("settingsPanel");
+  var keyInput = byId("groqKey");
+  var keyState = byId("keyState");
+  var saveMsg = byId("saveMsg");
+
+  function savedKey() { return store(KEY_STORE); }
+  function refreshKeyState() {
+    if (savedKey()) {
+      keyState.textContent = "Key saved";
+      keyState.classList.add("saved");
+      keyInput.placeholder = "Key saved on this device. Paste a new one only to change it.";
+    } else {
+      keyState.textContent = "No key saved";
+      keyState.classList.remove("saved");
+      keyInput.placeholder = "Paste your key here";
+    }
+  }
+  function setSettings(open) {
+    settingsPanel.hidden = !open;
+    settingsToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  settingsToggle.addEventListener("click", function () {
+    setSettings(settingsPanel.hidden);
+    if (!settingsPanel.hidden) { saveMsg.textContent = ""; }
+  });
+  byId("saveKeyBtn").addEventListener("click", function () {
+    var val = keyInput.value.trim();
+    if (val) {
+      put(KEY_STORE, val);
+      keyInput.value = "";
+      saveMsg.textContent = "Key saved on this device.";
+    } else {
+      saveMsg.textContent = savedKey() ? "Left your saved key as is." : "Nothing to save yet. Paste a key first.";
+    }
+    refreshKeyState();
+    setSettings(false);
+  });
+  refreshKeyState();
+
+  /* ---------- Callsign setup ---------- */
+  var CALLSIGNS = ["VIPER", "ECHO", "BLAZE", "NOMAD", "DIESEL", "HAVOC"];
+  var selectedCallsign = "VIPER";
+  var callsignInput = byId("callsignInput");
+  var chipsHost = byId("callsignChips");
+
+  CALLSIGNS.forEach(function (name) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chipbtn" + (name === selectedCallsign ? " on" : "");
+    b.textContent = name;
+    b.setAttribute("data-callsign", name);
+    b.addEventListener("click", function () {
+      selectedCallsign = name;
+      callsignInput.value = name;
+      markChips();
+    });
+    chipsHost.appendChild(b);
+  });
+  function markChips() {
+    var chips = chipsHost.querySelectorAll(".chipbtn");
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].classList.toggle("on", chips[i].getAttribute("data-callsign") === selectedCallsign && callsignInput.value.trim().toUpperCase() === selectedCallsign);
+    }
+  }
+  callsignInput.addEventListener("input", function () { markChips(); });
+
+  function enterMain(greet) {
+    var name = cs();
+    byId("statCallsign").textContent = name;
+    show("scr-main");
+    if (greet) {
+      speak("Channel is open, " + name + ". Control here. You are at your post. When it gets loud, I am in your ear.");
+    } else {
+      setTx("Channel open, " + name + ". Control standing by.");
+      waveMode("idle");
+    }
+  }
+  byId("openChannelBtn").addEventListener("click", function () {
+    var name = (callsignInput.value.trim() || selectedCallsign || "VIPER").toUpperCase().slice(0, 16);
+    put(CS_STORE, name);
+    enterMain(true);
+  });
+  byId("changeCallsignBtn").addEventListener("click", function () {
+    callsignInput.value = cs();
+    selectedCallsign = CALLSIGNS.indexOf(cs()) >= 0 ? cs() : selectedCallsign;
+    markChips();
+    show("scr-setup");
+  });
+
+  /* ---------- Channel is hot: argue help ---------- */
+  var sitGrid = byId("sitGrid");
+  var sitAnswer = byId("sitAnswer");
+  var sayIndex = {};
+  var currentSituation = null;
+  var currentSayLine = "";
+
+  SITUATIONS.forEach(function (s) {
+    var b = document.createElement("button");
+    b.className = "sit-btn";
+    b.type = "button";
+    var cod = document.createElement("span");
+    cod.className = "cod";
+    cod.textContent = "CH " + s.id.toUpperCase();
+    var lbl = document.createElement("span");
+    lbl.textContent = s.label;
+    b.appendChild(cod);
+    b.appendChild(lbl);
+    b.setAttribute("data-situation", s.id);
+    b.addEventListener("click", function () { showSituation(s.id); });
+    sitGrid.appendChild(b);
+  });
+
+  function showSituation(id) {
+    var s = findSituation(id);
+    currentSituation = s;
+    var idx = sayIndex[id] || 0;
+    sayIndex[id] = idx + 1;
+    var line = s.say[idx % s.say.length];
+    currentSayLine = line;
+    byId("sayText").textContent = line;
+    byId("dontText").textContent = s.dont;
+    byId("doText").textContent = s.doNext;
+    sitAnswer.hidden = false;
+    var btns = sitGrid.querySelectorAll(".sit-btn");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle("active", btns[i].getAttribute("data-situation") === id);
+    }
+    speak("Copy, " + cs() + ". " + line);
+    sitAnswer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  byId("loudBtn").addEventListener("click", function () {
+    var panel = byId("sitPanel");
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      setTx("Control is with you, " + cs() + ". Pick what is happening. I will talk you through it.");
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  });
+  byId("againBtn").addEventListener("click", function () {
+    if (currentSituation) { showSituation(currentSituation.id); }
+  });
+  byId("speakSitBtn").addEventListener("click", function () {
+    if (currentSayLine) { speak(currentSayLine, true); }
+  });
+
+  /* ---------- Call Control: AI with built in fallback (carried over) ---------- */
+  var COACH_PROMPT = "You are a calm coach for a dad mid-argument with his ADHD teen son. Answer in exactly three short parts with these exact labels: SAY THIS:, DO NOT SAY THIS:, DO THIS NEXT:. SAY THIS is one line under 12 words he can say out loud. DO NOT SAY THIS is one line that would make it worse. DO THIS NEXT is one small physical move. Plain words only. No clinical terms. No diagnosis. No medical advice. No lectures.";
+
+  var helpText = byId("helpText");
+  var askBtn = byId("askHelpBtn");
+  var aiAnswer = byId("aiAnswer");
+  var currentAiSay = "";
+
+  function matchSituation(text) {
+    var t = (text || "").toLowerCase();
+    if (/screen|phone|game|gaming|xbox|playstation|tablet|computer|tv|video/.test(t)) return findSituation("screen-fight");
+    if (/homework|school|grades|class|study|teacher|assignment/.test(t)) return findSituation("homework-fight");
+    if (/door|leave|leaving|late|morning|car|bus|get up|shoes/.test(t)) return findSituation("out-the-door");
+    if (/shut|silent|silence|ignore|walked away|won\u2019t talk|wont talk|room and|slammed/.test(t)) return findSituation("shut-down");
+    if (/yelled|yelling|shouted|screamed|lost it|i yelled/.test(t)) return findSituation("already-yelled");
+    if (/back talk|talking back|rude|mouth|attitude|swore|swear|cursed/.test(t)) return findSituation("talking-back");
+    return findSituation("wont-listen");
+  }
+
+  function renderAnswer(say, dont, doNext, note) {
+    currentAiSay = say;
+    byId("aiSay").textContent = say;
+    byId("aiDont").textContent = dont;
+    byId("aiDo").textContent = doNext;
+    byId("aiNote").textContent = note || "";
+    aiAnswer.hidden = false;
+    speak(say);
+    aiAnswer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function fallbackAnswer(text, reason) {
+    var s = matchSituation(text);
+    var note = reason === "nokey"
+      ? "Built in help. Add your key in Settings up top and this box can answer in your exact words. This one still works."
+      : "The helper could not connect, so here is the built in line for this one. It still works.";
+    renderAnswer(s.say[0], s.dont, s.doNext, note);
+  }
+
+  function parseCoach(content) {
+    var say = "", dont = "", doNext = "";
+    var lines = content.split(/\n+/);
+    var mode = "";
+    lines.forEach(function (raw) {
+      var line = raw.trim().replace(/^[-*\d.\s]+/, "");
+      if (/^SAY THIS:/i.test(line)) { mode = "say"; say = line.replace(/^SAY THIS:/i, "").trim(); }
+      else if (/^DO ?N(O|')T SAY THIS:/i.test(line) || /^NEVER SAY THIS:/i.test(line)) { mode = "dont"; dont = line.replace(/^.*SAY THIS:/i, "").trim(); }
+      else if (/^DO THIS NEXT:/i.test(line)) { mode = "do"; doNext = line.replace(/^DO THIS NEXT:/i, "").trim(); }
+      else if (/^NEXT MOVE:/i.test(line)) { mode = "do"; doNext = line.replace(/^NEXT MOVE:/i, "").trim(); }
+      else if (line) {
+        if (mode === "say" && !say) say = line;
+        else if (mode === "dont" && !dont) dont = line;
+        else if (mode === "do" && !doNext) doNext = line;
+      }
+    });
+    if (!say || !dont || !doNext) return null;
+    return { say: say.replace(/^["\u201C]|["\u201D]$/g, ""), dont: dont, doNext: doNext };
+  }
+
+  askBtn.addEventListener("click", function () {
+    var text = helpText.value.trim();
+    if (!text) {
+      renderAnswer("I\u2019m not here to fight you.", "You never listen to anything I say.", "Type one line about what is happening above, then tap CALL CONTROL again.", "Start with what just happened. Plain words are fine.");
+      return;
+    }
+    var key = savedKey();
+    if (!key) { fallbackAnswer(text, "nokey"); return; }
+    askBtn.disabled = true;
+    askBtn.textContent = "WORKING ON IT...";
+    fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + key
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.4,
+        max_tokens: 220,
+        messages: [
+          { role: "system", content: COACH_PROMPT },
+          { role: "user", content: text }
+        ]
+      })
+    }).then(function (res) {
+      if (!res.ok) { throw new Error("request failed"); }
+      return res.json();
+    }).then(function (data) {
+      var content = "";
+      try { content = data.choices[0].message.content || ""; } catch (e) {}
+      var parsed = content ? parseCoach(content) : null;
+      if (parsed) {
+        renderAnswer(parsed.say, parsed.dont, parsed.doNext, "From the helper, in your words.");
+      } else {
+        fallbackAnswer(text, "failed");
+      }
+    }).catch(function () {
+      fallbackAnswer(text, "failed");
+    }).then(function () {
+      askBtn.disabled = false;
+      askBtn.textContent = "CALL CONTROL";
+    });
+  });
+  byId("speakAiBtn").addEventListener("click", function () {
+    if (currentAiSay) { speak(currentAiSay, true); }
+  });
+
+  /* Mic: typing always works. Mic only shows when the browser offers it. */
+  var micBtn = byId("micBtn");
+  var Recognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+  if (Recognition) {
+    micBtn.hidden = false;
+    var rec = null;
+    micBtn.addEventListener("click", function () {
+      if (rec) { try { rec.stop(); } catch (e) {} return; }
+      rec = new Recognition();
+      rec.lang = "en-US";
+      rec.interimResults = false;
+      rec.onresult = function (ev) {
+        var said = "";
+        for (var i = 0; i < ev.results.length; i++) { said += ev.results[i][0].transcript; }
+        helpText.value = (helpText.value + " " + said).trim();
+      };
+      rec.onend = function () { rec = null; micBtn.classList.remove("listening"); waveMode("idle"); };
+      rec.onerror = function () { rec = null; micBtn.classList.remove("listening"); waveMode("idle"); };
+      micBtn.classList.add("listening");
+      waveMode("listen");
+      try { rec.start(); } catch (e) { rec = null; micBtn.classList.remove("listening"); waveMode("idle"); }
+    });
+  }
+
+  /* ---------- Reopen the channel: repair lines speak too ---------- */
+  var repairBtns = document.querySelectorAll(".repair-speak");
+  for (var r = 0; r < repairBtns.length; r++) {
+    (function (btn) {
+      btn.addEventListener("click", function () { speak(btn.getAttribute("data-say"), true); });
+    })(repairBtns[r]);
+  }
+
+  /* ---------- Your Post: my lane (carried over) ---------- */
+  var LANES = [
+    { id: "morning-launch", name: "Morning launch", small: "You own the mornings. Bag, shoes, out the door.", action: "Tonight: shoes, bag, and keys by the door. You set it, he just walks into it." },
+    { id: "rides", name: "Rides", small: "You own the driving. Side by side time counts.", action: "Offer one ride today. No big talk unless he starts it." },
+    { id: "food-run", name: "Food run", small: "You own one food run. Low talk, easy win.", action: "Ask once: food run, his pick within the budget. Keep it light." },
+    { id: "night-reset", name: "Night reset", small: "You own the last ten minutes of the night.", action: "Ten minutes tonight: counters clear, bag packed, house wound down." },
+    { id: "practice-run", name: "Practice run", small: "You own getting him there, on time, calm.", action: "Say the leave time once. Be ready five minutes before it." }
+  ];
+  var laneGrid = byId("laneGrid");
+
+  function currentLane() { return store(LANE_STORE); }
+  function laneById(id) {
+    for (var i = 0; i < LANES.length; i++) { if (LANES[i].id === id) return LANES[i]; }
+    return null;
+  }
+  function renderLane() {
+    var lane = laneById(currentLane());
+    if (lane) {
+      byId("laneName").textContent = lane.name;
+      byId("laneAction").textContent = lane.action;
+    } else {
+      byId("laneName").textContent = "not picked yet";
+      byId("laneAction").textContent = "Pick your post in Your Post below. One job only. That is the whole design.";
+    }
+    var btns = laneGrid.querySelectorAll(".lane-btn");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle("picked", lane && btns[i].getAttribute("data-lane") === lane.id);
+    }
+  }
+  LANES.forEach(function (lane) {
+    var b = document.createElement("button");
+    b.className = "lane-btn";
+    b.type = "button";
+    b.setAttribute("data-lane", lane.id);
+    var nameSpan = document.createElement("span");
+    nameSpan.textContent = lane.name;
+    var smallSpan = document.createElement("span");
+    smallSpan.className = "small";
+    smallSpan.textContent = lane.small;
+    b.appendChild(nameSpan);
+    b.appendChild(smallSpan);
+    b.addEventListener("click", function () {
+      put(LANE_STORE, lane.id);
+      renderLane();
+      speak("Post set, " + cs() + ". " + lane.name + " is yours.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    laneGrid.appendChild(b);
+  });
+  renderLane();
+
+  /* ---------- First load: back on channel, or set up ---------- */
+  if (store(CS_STORE)) {
+    callsignInput.value = cs();
+    selectedCallsign = CALLSIGNS.indexOf(cs()) >= 0 ? cs() : selectedCallsign;
+    markChips();
+    enterMain(false);
+  } else {
+    show("scr-setup");
+  }
+})();
+</script>
+</body>
+</html>
